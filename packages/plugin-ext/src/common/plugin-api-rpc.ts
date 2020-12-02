@@ -694,6 +694,17 @@ export interface TimelineCommandArg {
     uri: string;
 }
 
+export namespace CommentsCommandArg {
+    export function is(arg: Object | undefined): arg is CommentsCommandArg {
+        return !!arg && typeof arg === 'object' && 'commentControlHandle' in arg && 'commentThreadHandle' in arg && 'text' in arg;
+    }
+}
+export interface CommentsCommandArg {
+    commentControlHandle: number;
+    commentThreadHandle: number;
+    text: string
+}
+
 export interface DecorationsExt {
     registerDecorationProvider(provider: theia.DecorationProvider): theia.Disposable
     $provideDecoration(id: number, uri: string): Promise<DecorationData | undefined>

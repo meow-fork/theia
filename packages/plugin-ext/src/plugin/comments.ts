@@ -32,6 +32,7 @@ import { Disposable, DisposableCollection } from '@theia/core/lib/common/disposa
 import { fromMarkdown, fromRange, pathOrURIToURI, toRange } from './type-converters';
 import { CommentThreadCollapsibleState } from './types-impl';
 import {
+    CommentsCommandArg,
     CommentsExt,
     CommentsMain,
     CommentThreadChanges,
@@ -55,15 +56,7 @@ export class CommentsExtImpl implements CommentsExt {
 
         commands.registerArgumentProcessor({
             processArgument: arg => {
-                if (arg && arg.$mid === 6) {
-                    const commentController = this._commentControllers.get(arg.handle);
-
-                    if (!commentController) {
-                        return arg;
-                    }
-
-                    return commentController;
-                } else if (arg && arg.$mid === 7) {
+                if (CommentsCommandArg.is(arg)) {
                     const commentController = this._commentControllers.get(arg.commentControlHandle);
 
                     if (!commentController) {
@@ -76,71 +69,10 @@ export class CommentsExtImpl implements CommentsExt {
                         return arg;
                     }
 
-                    return commentThread;
-                } else if (arg && arg.$mid === 8) {
-                    const commentController = this._commentControllers.get(arg.thread.commentControlHandle);
-
-                    if (!commentController) {
-                        return arg;
-                    }
-
-                    const commentThread = commentController.getCommentThread(arg.thread.commentThreadHandle);
-
-                    if (!commentThread) {
-                        return arg;
-                    }
-
                     return {
                         thread: commentThread,
                         text: arg.text
                     };
-                } else if (arg && arg.$mid === 9) {
-                    const commentController = this._commentControllers.get(arg.thread.commentControlHandle);
-
-                    if (!commentController) {
-                        return arg;
-                    }
-
-                    const commentThread = commentController.getCommentThread(arg.thread.commentThreadHandle);
-
-                    if (!commentThread) {
-                        return arg;
-                    }
-
-                    const commentUniqueId = arg.commentUniqueId;
-
-                    const comment = commentThread.getCommentByUniqueId(commentUniqueId);
-
-                    if (!comment) {
-                        return arg;
-                    }
-
-                    return comment;
-
-                } else if (arg && arg.$mid === 10) {
-                    const commentController = this._commentControllers.get(arg.thread.commentControlHandle);
-
-                    if (!commentController) {
-                        return arg;
-                    }
-
-                    const commentThread = commentController.getCommentThread(arg.thread.commentThreadHandle);
-
-                    if (!commentThread) {
-                        return arg;
-                    }
-
-                    const body = arg.text;
-                    const commentUniqueId = arg.commentUniqueId;
-
-                    const comment = commentThread.getCommentByUniqueId(commentUniqueId);
-
-                    if (!comment) {
-                        return arg;
-                    }
-
-                    comment.body = body;
-                    return comment;
                 }
 
                 return arg;

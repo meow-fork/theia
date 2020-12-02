@@ -16,19 +16,31 @@
 import { MonacoEditorZoneWidget } from '@theia/monaco/lib/browser/monaco-editor-zone-widget';
 import { Comment, CommentThread, CommentThreadCollapsibleState } from '../../../common/plugin-api-rpc-model';
 import { CommentGlyphWidget } from './comment-glyph-widget';
-import { BaseWidget } from '@theia/core/lib/browser';
+import { BaseWidget, DISABLED_CLASS } from '@theia/core/lib/browser';
 import * as ReactDOM from 'react-dom';
 import * as React from 'react';
 import { MouseTargetType } from '@theia/editor/lib/browser';
 import { CommentsService } from './comments-service';
+import {
+    ActionMenuNode,
+    CommandRegistry,
+    CompositeMenuNode,
+    MenuModelRegistry,
+    MenuPath
+} from '@theia/core/lib/common';
+import { CommentsContextKeyService } from './comments-context-key-service';
 
-export class ReviewZoneWidget extends BaseWidget {
+export const COMMENT_INLINE_MENU: MenuPath = ['comment-inline-menu'];
+
+export class CommentThreadWidget extends BaseWidget {
 
     protected _headingLabel: HTMLElement;
     protected zoneWidget: MonacoEditorZoneWidget;
     protected commentGlyphWidget: CommentGlyphWidget;
 
     private _isExpanded?: boolean;
+    private inputValue: string = '';
+    private readonly menu: CompositeMenuNode;
 
     public getGlyphPosition(): number {
         // if (this._commentGlyph) {
@@ -37,11 +49,25 @@ export class ReviewZoneWidget extends BaseWidget {
         return 0;
     }
 
+    // @postConstruct()
+    // protected init(): void {
+    //     this.render();
+    // }
+
+    /**
+     * Don't modify DOM use React! only exposed for `focusInput`
+     * Use `this.scmService.selectedRepository?.input.value` as a single source of truth!
+     */
+    protected readonly inputRef = React.createRef<HTMLTextAreaElement>();
+
     constructor(
         editor: monaco.editor.IStandaloneCodeEditor,
         private _owner: string,
         private _commentThread: CommentThread,
-        private commentService: CommentsService
+        private commentService: CommentsService,
+        protected readonly menus: MenuModelRegistry,
+        protected readonly contextKeyService: CommentsContextKeyService,
+        protected readonly commands: CommandRegistry
     ) {
         super();
         this.toDispose.push(this.zoneWidget = new MonacoEditorZoneWidget(editor));
@@ -59,18 +85,39 @@ export class ReviewZoneWidget extends BaseWidget {
                 return;
             }
         }));
+        this.contextKeyService.commentIsEmpty.set(true);
         this.toDispose.push(this.zoneWidget.editor.onMouseDown(e => this.onEditorMouseDown(e)));
+        this.toDispose.push(this.contextKeyService.onDidChange(() => this.update()));
+        this.menu = this.menus.getMenu(COMMENT_INLINE_MENU);
+        this.menu.children.map(node => node instanceof ActionMenuNode && node.action.when).forEach(exp => {
+            if (typeof exp === 'string') {
+                this.contextKeyService.setExpression(exp);
+            }
+        });
         // this._fillContainer(this.zone.containerNode);
         // this.createThreadLabel();
     }
 
-    // @postConstruct()
-    // protected init(): void {
-    //     this.render();
-    // }
-
     protected render(): void {
         const headHeight = Math.ceil(this.zoneWidget.editor.getOption(monaco.editor.EditorOption.lineHeight) * 1.2);
+        const hasExistingComments = this._commentThread.comments && this._commentThread.comments.length > 0;
+        const getInput: () => string = () => this.inputValue;
+        const clearInput: () => void = () => {
+            const input = this.inputRef.current;
+            if (input) {
+                this.inputValue = '';
+                input.value = this.inputValue;
+                this.contextKeyService.commentIsEmpty.set(true);
+            }
+        };
+        const onInput: (event: React.FormEvent) => void = (event: React.FormEvent) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const value = (event.target as any).value;
+            if (this.inputValue.length === 0 || value.length === 0) {
+                this.contextKeyService.commentIsEmpty.set(value.length === 0);
+            }
+            this.inputValue = value;
+        };
         ReactDOM.render(<div className={'review-widget'}>
             <div className={'head'} style={{ height: headHeight, lineHeight: `${headHeight}px`}}>
                 <div className={'review-title'}>
@@ -93,10 +140,23 @@ export class ReviewZoneWidget extends BaseWidget {
             </div>
             <div className={'body'}>
                 <div className={'comments-container'} role={'presentation'} tabIndex={0}>
-                    {this.commentThread.comments?.map(comment => <ThreadElements comment={comment}/> )}
+                    {this.commentThread.comments?.map((comment, index) => <ReviewComment key={index} comment={comment}/>)}
                 </div>
                 <div className={'comment-form'}>
-
+                    <div className={'theia-comments-input-message-container'}>
+                        <textarea className={'theia-comments-input-message theia-input'}
+                                  placeholder={hasExistingComments ? 'Reply...' : 'Type a new comment'}
+                                  onInput={onInput}
+                                  ref={this.inputRef}>
+                        </textarea>
+                    </div>
+                    <CommentActions menu={this.menu}
+                                    contextKeyService={this.contextKeyService}
+                                    commands={this.commands}
+                                    commentThread={this._commentThread}
+                                    getInput={getInput}
+                                    clearInput={clearInput}
+                    />
                 </div>
             </div>
         </div>, this.zoneWidget.containerNode);
@@ -120,19 +180,9 @@ export class ReviewZoneWidget extends BaseWidget {
 
     dispose(): void {
         super.dispose();
-        // if (this._resizeObserver) {
-        //     this._resizeObserver.disconnect();
-        //     this._resizeObserver = null;
-        // }
-
         if (this.commentGlyphWidget) {
             this.commentGlyphWidget.dispose();
         }
-
-        // this._globalToDispose.dispose();
-        // this._commentThreadDisposables.forEach(global => global.dispose());
-        // this._submitActionsDisposables.forEach(local => local.dispose());
-        // this._onDidClose.fire(undefined);
     }
 
     toggleExpand(lineNumber: number): void {
@@ -250,18 +300,6 @@ export class ReviewZoneWidget extends BaseWidget {
         return label;
     }
 
-    protected setCssClass(className: string, classToReplace?: string): void {
-        if (!this.zoneWidget.containerNode) {
-            return;
-        }
-
-        if (classToReplace) {
-            this.zoneWidget.containerNode.classList.remove(classToReplace);
-        }
-
-        this.zoneWidget.containerNode.classList.add(className);
-    }
-
     update(): void {
         this.render();
         const headHeight = Math.ceil(this.zoneWidget.editor.getOption(monaco.editor.EditorOption.lineHeight) * 1.2);
@@ -272,18 +310,19 @@ export class ReviewZoneWidget extends BaseWidget {
 
         const computedLinesNumber = Math.ceil((headHeight + body.clientHeight + arrowHeight + frameThickness + 8 /** margin bottom to avoid margin collapse */) / lineHeight);
         this.zoneWidget.show({ afterLineNumber: this.commentThread.range.startLineNumber, heightInLines: computedLinesNumber });
+        (this.inputRef.current || this.node).focus();
     }
 }
 
-namespace ThreadElements {
+namespace ReviewComment {
     export interface Props  {
         comment: Comment;
     }
 }
 
-export class ThreadElements extends React.Component<ThreadElements.Props> {
+export class ReviewComment extends React.Component<ReviewComment.Props> {
     render(): React.ReactNode {
-        const comment = this.props.comment;
+        const comment: Comment = this.props.comment;
         return <div className={'review-comment'} tabIndex={-1} aria-label={`${comment.userName}, ${comment.body.value}`}>
             <div className={'avatar-container'}>
                 <img className={'avatar'} src={comment.userIconPath}/>
@@ -291,9 +330,80 @@ export class ThreadElements extends React.Component<ThreadElements.Props> {
             <div className={'review-comment-contents'}>
                 <div className={'comment-title monaco-mouse-cursor-text'}>
                     <strong className={'author'}>{comment.userName}</strong>
-                    <span className={'isPending'}/>
+                    <span className={'isPending'}>{comment.label}</span>
+                </div>
+                <div className={'comment-body monaco-mouse-cursor-text'}>
+                    <div>
+                        <p>{comment.body.value}</p>
+                    </div>
                 </div>
             </div>
         </div>;
+    }
+}
+
+namespace CommentActions {
+    export interface Props  {
+        contextKeyService: CommentsContextKeyService;
+        commands: CommandRegistry;
+        menu: CompositeMenuNode;
+        commentThread: CommentThread;
+        getInput: () => string;
+        clearInput: () => void;
+    }
+}
+
+export class CommentActions extends React.Component<CommentActions.Props> {
+    render(): React.ReactNode {
+        const {contextKeyService, commands, menu, commentThread, getInput, clearInput } = this.props;
+        return <div className={'form-actions'}>
+            {menu.children.map((node, index) => node instanceof ActionMenuNode &&
+                <CommentAction key={index}
+                               commands={commands}
+                               node={node}
+                               contextKeyService={contextKeyService}
+                               commentThread={commentThread}
+                               getInput={getInput}
+                               clearInput={clearInput}
+                />)}
+        </div>;
+    }
+}
+namespace CommentAction {
+    export interface Props  {
+        contextKeyService: CommentsContextKeyService;
+        commands: CommandRegistry;
+        node: ActionMenuNode;
+        commentThread: CommentThread;
+        getInput: () => string;
+        clearInput: () => void;
+    }
+}
+
+export class CommentAction extends React.Component<CommentAction.Props> {
+    render(): React.ReactNode {
+        const classNames = ['comments-button', 'comments-text-button', 'theia-button'];
+        const { node, commands, contextKeyService, commentThread, getInput, clearInput } = this.props;
+        if (node.action.when && !contextKeyService.match(node.action.when)) {
+            return false;
+        }
+        const isEnabled = commands.isEnabled(node.action.commandId);
+        if (!isEnabled) {
+            classNames.push(DISABLED_CLASS);
+        }
+        return <a
+            className={classNames.join(' ')}
+            tabIndex={0}
+            role={'button'}
+            onClick={() => {
+                if (isEnabled) {
+                    commands.executeCommand(node.id, {
+                        thread: commentThread,
+                        text: getInput()
+                    });
+                    clearInput();
+                }
+            }}>{node.label}
+        </a>;
     }
 }

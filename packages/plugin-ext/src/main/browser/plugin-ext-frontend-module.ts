@@ -68,6 +68,7 @@ import { WebviewWidgetFactory } from './webview/webview-widget-factory';
 import { CommentsService, PluginCommentService } from './comments/comments-service';
 import { CommentingRangeDecorator } from './comments/comments-decorator';
 import { CommentsContribution } from './comments/comments-contribution';
+import { CommentsContextKeyService } from './comments/comments-context-key-service';
 
 export default new ContainerModule((bind, unbind, isBound, rebind) => {
 
@@ -207,4 +208,5 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
     bind(CommentsService).to(PluginCommentService).inSingletonScope();
     bind(CommentingRangeDecorator).toSelf().inSingletonScope();
     bind(CommentsContribution).toSelf().inSingletonScope();
+    bind(CommentsContextKeyService).toSelf().inSingletonScope();
 });

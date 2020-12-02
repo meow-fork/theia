@@ -155,15 +155,6 @@ export class CommentThreadImpl implements CommentThread, Disposable {
         this._onDidChangeLabel.dispose();
         this._onDidChangeRange.dispose();
     }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    toJSON(): any {
-        return {
-            $mid: 7,
-            commentControlHandle: this.controllerHandle,
-            commentThreadHandle: this.commentThreadHandle,
-        };
-    }
 }
 
 export class CommentController {

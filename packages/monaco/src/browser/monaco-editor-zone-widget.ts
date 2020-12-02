@@ -56,6 +56,7 @@ export class MonacoEditorZoneWidget implements Disposable {
 
     dispose(): void {
         this.toDispose.dispose();
+        this.hide();
     }
 
     protected _options: MonacoEditorZoneWidget.Options | undefined;
@@ -122,7 +123,6 @@ export class MonacoEditorZoneWidget implements Disposable {
             this.toHide.push(Disposable.create(() => this.editor.removeOverlayWidget(widget)));
         });
 
-        this.containerNode.style.top = (this.showArrow ? 6 : 0) + 'px';
         this.containerNode.style.overflow = 'hidden';
         this.updateContainerHeight(heightInLines * lineHeight);
 
@@ -142,7 +142,7 @@ export class MonacoEditorZoneWidget implements Disposable {
     }
 
     protected updateTop(top: number): void {
-        this.zoneNode.style.top = top + 'px';
+        this.zoneNode.style.top = top + (this.showArrow ? 6 : 0)  + 'px';
     }
     protected updateHeight(zoneHeight: number): void {
         this.zoneNode.style.height = zoneHeight + 'px';

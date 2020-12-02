@@ -18,22 +18,29 @@ import { inject, injectable } from 'inversify';
 import { CommentingRangeDecorator } from './comments-decorator';
 import { EditorManager, EditorMouseEvent, EditorWidget } from '@theia/editor/lib/browser';
 import { MonacoDiffEditor } from '@theia/monaco/lib/browser/monaco-diff-editor';
-import { ReviewZoneWidget } from './comment-thread-widget';
+import { CommentThreadWidget } from './comment-thread-widget';
 import { CommentsService, ICommentInfo } from './comments-service';
 import { CommentThread } from '../../../common/plugin-api-rpc-model';
-import { DisposableCollection } from '@theia/core/lib/common';
+import { CommandRegistry, DisposableCollection, MenuModelRegistry } from '@theia/core/lib/common';
 import { URI } from 'vscode-uri';
+import { CommentsContextKeyService } from './comments-context-key-service';
+import { ContextKeyService } from '@theia/core/lib/browser/context-key-service';
 
 @injectable()
 export class CommentsContribution {
 
     // private mouseDownInfo: { lineNumber: number } | undefined;
     private _addInProgress!: boolean;
-    private _commentWidgets: ReviewZoneWidget[];
+    private _commentWidgets: CommentThreadWidget[];
     private _commentInfos: ICommentInfo[];
     private _pendingCommentCache: { [key: string]: { [key: string]: string } };
     private _emptyThreadsToAddQueue: [number, EditorMouseEvent | undefined][] = [];
     private _computePromise: Promise<Array<ICommentInfo | null>> | undefined;
+
+    @inject(MenuModelRegistry) protected readonly menus: MenuModelRegistry;
+    @inject(CommentsContextKeyService) protected readonly commentsContextKeyService: CommentsContextKeyService;
+    @inject(ContextKeyService) protected readonly contextKeyService: ContextKeyService;
+    @inject(CommandRegistry) protected readonly commands: CommandRegistry;
 
     constructor(@inject(CommentingRangeDecorator) protected readonly rangeDecorator: CommentingRangeDecorator,
                 @inject(CommentsService) protected readonly commentService: CommentsService,
@@ -89,14 +96,14 @@ export class CommentsContribution {
                         const changed = e.changed.filter(thread => thread.resource && thread.resource.toString() === editorURI.toString());
 
                         removed.forEach(thread => {
-                            // const matchedZones = this._commentWidgets.filter(zoneWidget => zoneWidget.owner === e.owner
-                            //     && zoneWidget.commentThread.threadId === thread.threadId && zoneWidget.commentThread.threadId !== '');
-                            // if (matchedZones.length) {
-                            //     const matchedZone = matchedZones[0];
-                            //     const index = this._commentWidgets.indexOf(matchedZone);
-                            //     this._commentWidgets.splice(index, 1);
-                            //     matchedZone.dispose();
-                            // }
+                            const matchedZones = this._commentWidgets.filter(zoneWidget => zoneWidget.owner === e.owner
+                                && zoneWidget.commentThread.threadId === thread.threadId && zoneWidget.commentThread.threadId !== '');
+                            if (matchedZones.length) {
+                                const matchedZone = matchedZones[0];
+                                const index = this._commentWidgets.indexOf(matchedZone);
+                                this._commentWidgets.splice(index, 1);
+                                matchedZone.dispose();
+                            }
                         });
 
                         changed.forEach(thread => {
@@ -186,26 +193,12 @@ export class CommentsContribution {
             const comments = await this.commentService.getComments(editorURI);
             this.setComments(<ICommentInfo[]>comments.filter(c => !!c));
         }
-        // this._computePromise = createCancelablePromise(token => {
-        //     const editorURI = this.editor && this.editor.hasModel() && this.editor.getModel().uri;
-        //
-        //     if (editorURI) {
-        //         return this.commentService.getComments(editorURI);
-        //     }
-        //
-        //     return Promise.resolve([]);
-        // });
-        //
-        // return this._computePromise.then(commentInfos => {
-        //     this.setComments(coalesce(commentInfos));
-        //     this._computePromise = null;
-        // }, error => console.log(error));
     }
 
     private setComments(commentInfos: ICommentInfo[]): void {
-        // if (!this.editor) {
-        //     return;
-        // }
+        if (!this.editor) {
+            return;
+        }
 
         this._commentInfos = commentInfos;
         // let lineDecorationsWidth: number = this.editor.getLayoutInfo().decorationsWidth;
@@ -274,7 +267,11 @@ export class CommentsContribution {
     private displayCommentThread(owner: string, thread: CommentThread, pendingComment: string | undefined): void {
         const editor = this.editor;
         if (editor) {
-            const zoneWidget = new ReviewZoneWidget(editor, owner, thread, this.commentService);
+            const provider = this.commentService.getCommentController(owner);
+            if (provider) {
+                this.commentsContextKeyService.commentController.set(provider.id);
+            }
+            const zoneWidget = new CommentThreadWidget(editor, owner, thread, this.commentService, this.menus, this.commentsContextKeyService, this.commands);
             zoneWidget.display({ afterLineNumber: thread.range.startLineNumber, heightInLines: 5 });
             const currentEditor = this.getCurrentEditor();
             if (currentEditor) {

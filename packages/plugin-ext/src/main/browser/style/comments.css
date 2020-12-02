@@ -107,6 +107,10 @@
     position: relative;
 }
 
+.monaco-editor .review-widget .body .comment-form {
+    margin: 8px 20px;
+}
+
 .monaco-editor .review-widget .body .review-comment {
     padding: 8px 16px 8px 20px;
     display: flex;
@@ -133,4 +137,121 @@
     -webkit-user-select: text;
     width: 100%;
     overflow: hidden;
+}
+
+.monaco-editor .review-widget .body .review-comment .review-comment-contents .author {
+    line-height: 22px;
+}
+
+.monaco-editor .review-widget .body .review-comment .review-comment-contents .isPending {
+    margin: 0 5px 0 5px;
+    padding: 0 2px 0 2px;
+    font-style: italic;
+}
+
+.monaco-editor .review-widget .body .review-comment .review-comment-contents .comment-body {
+    padding-top: 4px;
+}
+
+.theia-comments-input-message-container {
+    display: flex;
+    flex-direction: column;
+    margin: 0px 0px 7px 0px;
+    max-height: 400px;
+}
+
+.theia-comments-input-message-container textarea {
+    line-height: var(--theia-content-line-height);
+    background: var(--theia-editor-background);
+    resize: none;
+    box-sizing: border-box;
+    min-height: 32px;
+    padding: 4px;
+    border: none;
+}
+
+.theia-comments-input-message-container textarea:placeholder-shown {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.theia-comments-input-message-container textarea:not(:focus) {
+    border: var(--theia-border-width) solid var(--theia-editor-background);
+}
+
+.theia-comments-input-message-container textarea:focus {
+    border: var(--theia-border-width) solid var(--theia-focusBorder);
+}
+
+.theia-comments-input-message {
+    width: 100%;
+}
+
+.monaco-editor .review-widget .body .comment-body p,
+.monaco-editor .review-widget .body .comment-body ul {
+    margin: 8px 0;
+}
+
+.monaco-editor .review-widget .body .comment-body p:first-child,
+.monaco-editor .review-widget .body .comment-body ul:first-child {
+    margin-top: 0;
+}
+
+.monaco-editor .review-widget .body .comment-body p:last-child,
+.monaco-editor .review-widget .body.comment-body ul:last-child {
+    margin-bottom: 0;
+}
+
+.monaco-editor .review-widget .body .comment-body ul {
+    padding-left: 20px;
+}
+
+.monaco-editor .review-widget .body .comment-body li > p {
+    margin-bottom: 0;
+}
+
+.monaco-editor .review-widget .body .comment-body li > ul {
+    margin-top: 0;
+}
+
+.monaco-editor .review-widget .body .comment-body code {
+    border-radius: 3px;
+    padding: 0 0.4em;
+}
+
+.monaco-editor .review-widget .body .comment-body span {
+    white-space: pre;
+}
+
+.monaco-editor .review-widget .body .comment-body img {
+    max-width: 100%;
+}
+
+.monaco-editor .review-widget .body .comment-form .form-actions {
+    display: block;
+    box-sizing: content-box;
+}
+
+.monaco-editor .review-widget .body .comment-form .form-actions,
+.monaco-editor .review-widget .body .edit-container .form-actions {
+    overflow: auto;
+    padding: 10px 0;
+}
+
+.monaco-editor .review-widget .body .edit-container .form-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.monaco-editor .review-widget .body .comment-form .comments-text-button,
+.monaco-editor .review-widget .body .edit-container .comments-text-button {
+    width: auto;
+    padding: 4px 10px;
+    margin-left: 5px;
+    margin-bottom: 5px;
+}
+
+.monaco-editor .review-widget .body .comment-form .comments-text-button {
+    float: right;
 }
